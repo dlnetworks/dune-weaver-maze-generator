@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Maze — Dune Weaver</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/site.webmanifest">
+<style>
+  :root {
+    --bg: hsl(0 0% 10%);
+    --fg: hsl(210 40% 98%);
+    --card: hsl(0 0% 18%);
+    --border: hsl(0 0% 32%);
+    --muted: hsl(215 20.2% 65.1%);
+    --primary: hsl(207 90% 50%);
+    --primary-fg: hsl(210 40% 98%);
+    --secondary: hsl(0 0% 25%);
+    --success: hsl(142 71% 45%);
+    --destructive: hsl(0 62% 45%);
+    --radius: 0.5rem;
+    --font: 'Plus Jakarta Sans', 'Noto Sans', system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: hsl(220 14% 98%);
+      --fg: hsl(222.2 84% 4.9%);
+      --card: hsl(0 0% 100%);
+      --border: hsl(214.3 31.8% 91.4%);
+      --muted: hsl(215.4 16.3% 46.9%);
+      --secondary: hsl(0 0% 92%);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%; width: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font);
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+  }
+  .container {
+    width: 100%; height: 100dvh;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .header-row {
+    display: flex; align-items: baseline; gap: 12px;
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .header-row .spacer { flex: 1; }
+  .icon-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg); width: 36px; height: 36px;
+    border-radius: var(--radius); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .icon-btn:hover { background: var(--secondary); }
+  .icon-btn:active { opacity: 0.7; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .slider-row {
+    display: flex; align-items: center; gap: 10px; margin-top: 4px;
+  }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--primary); }
+  .slider-row .val {
+    font-family: 'SF Mono', 'Menlo', monospace; font-size: 0.8rem;
+    min-width: 48px; text-align: right; color: var(--muted);
+  }
+  h1 { font-size: 1.25rem; font-weight: 700; }
+  .subtitle { font-size: 0.75rem; color: var(--muted); }
+  label { font-size: 0.7rem; color: var(--muted); display: block; margin-bottom: 2px; }
+  input[type=number], input[type=text] {
+    width: 100%; height: 32px; font-size: 0.85rem;
+    background: var(--card); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0 8px; outline: none;
+    font-family: var(--font);
+  }
+  input:focus { border-color: var(--primary); }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 0;
+  }
+  .main-card { flex: 1; min-height: 0; }
+  .settings-row {
+    display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+  }
+  .rings-input { flex: 0 0 140px; }
+  .settings-row .btn { flex: 1; height: 38px; }
+  .saved-card { flex-shrink: 0; max-height: 30vh; }
+  .canvas-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    min-height: 0; min-width: 0; overflow: hidden;
+  }
+  canvas {
+    display: block; touch-action: none;
+    /* size is set explicitly in JS so it can never exceed the wrap */
+  }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .btn {
+    padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius);
+    font-size: 0.85rem; font-weight: 600; font-family: var(--font);
+    cursor: pointer; transition: opacity 0.15s, background 0.15s;
+    background: var(--secondary); color: var(--fg);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
+  .btn:active:not(:disabled) { opacity: 0.7; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: var(--primary-fg); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); }
+  .btn-ghost { background: transparent; }
+  .btn-full { width: 100%; }
+  .info { font-size: 0.7rem; color: var(--muted); text-align: center; margin-top: 6px; }
+  .info-success { color: var(--success); font-weight: 600; }
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--card); color: var(--fg); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: var(--radius); font-size: 0.85rem;
+    z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { border-color: var(--destructive); }
+
+  .dpad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    width: 180px; margin: 0 auto;
+  }
+  .dpad-btn { height: 56px; font-size: 1.4rem; padding: 0; }
+  .dpad-spacer {}
+  .dpad-center { display: flex; align-items: center; justify-content: center; }
+  .dpad-dot { width: 14px; height: 14px; border-radius: 9999px; background: var(--primary); }
+
+  .checkbox-row {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 10px 0;
+  }
+  .checkbox-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); }
+  .checkbox-row label { font-size: 0.8rem; color: var(--muted); margin: 0; }
+
+  .saved-list { max-height: 220px; overflow-y: auto; }
+  .saved-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .saved-item:last-child { border-bottom: none; }
+  .saved-name {
+    font-family: 'SF Mono', 'Menlo', monospace; font-size: 0.8rem;
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .saved-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .saved-actions .btn { padding: 4px 8px; font-size: 0.7rem; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+    padding: 16px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; max-width: 400px; width: 100%;
+  }
+  .modal h2 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
+  .modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;
+  }
+  .modal-actions .btn { flex: 0 0 auto; padding: 8px 16px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <h1>Maze Generator</h1>
+    <p class="subtitle">Standalone — stock endpoints only</p>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="card main-card">
+    <div class="settings-row">
+      <div class="rings-input">
+        <label for="rings">Rings (3–8)</label>
+        <input type="text" inputmode="numeric" id="rings" maxlength="2" value="6" placeholder="6">
+      </div>
+      <button class="btn btn-primary" id="generateBtn">Generate Maze</button>
+    </div>
+
+    <div id="previewWrap" class="canvas-wrap hidden">
+      <canvas id="mazeCanvas"></canvas>
+    </div>
+
+    <div id="actionsRow" class="hidden">
+      <div class="row">
+        <button class="btn" id="saveBtn">Save</button>
+        <button class="btn btn-primary hidden" id="playBtn">Play</button>
+        <button class="btn btn-outline hidden" id="solveBtn">Solve</button>
+      </div>
+    </div>
+
+    <p id="playingMsg" class="info hidden">Drawing maze on table...</p>
+
+    <div id="solveControls" class="hidden">
+      <div class="dpad">
+        <div class="dpad-spacer"></div>
+        <button class="btn btn-outline dpad-btn" data-dir="out">↑</button>
+        <div class="dpad-spacer"></div>
+        <button class="btn btn-outline dpad-btn" data-dir="ccw">←</button>
+        <div class="dpad-center"><div class="dpad-dot"></div></div>
+        <button class="btn btn-outline dpad-btn" data-dir="cw">→</button>
+        <div class="dpad-spacer"></div>
+        <button class="btn btn-outline dpad-btn" data-dir="in">↓</button>
+        <div class="dpad-spacer"></div>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="fpvMode">
+        <label for="fpvMode" id="fpvLabel">First-person view</label>
+      </div>
+      <p id="solveHelp" class="info">Up=out, Down=in, Left=CCW, Right=CW</p>
+      <button class="btn btn-ghost btn-full" id="exitSolveBtn">Exit Solve Mode</button>
+    </div>
+
+    <p id="solvedMsg" class="info info-success hidden">Maze solved!</p>
+  </div>
+
+  <div class="card hidden saved-card" id="savedCard">
+    <h2 style="font-size:0.85rem; font-weight:600;">Saved Mazes</h2>
+    <div class="saved-list" id="savedList"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="saveModal">
+  <div class="modal">
+    <h2>Save Maze Pattern</h2>
+    <label for="saveName">Pattern name</label>
+    <input type="text" id="saveName" placeholder="e.g. my-maze" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="saveCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveConfirmBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label for="stepRange">Move distance per press (fraction of a cell)</label>
+    <div class="slider-row">
+      <input type="range" id="stepRange" min="0.05" max="1.0" step="0.05" value="0.3">
+      <span class="val" id="stepVal">0.30</span>
+    </div>
+    <p class="info" style="text-align:left">
+      Lower = finer control (small movements per press).<br>
+      Higher = bigger jumps per press, walls still block.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="settingsCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ============================================================
+  //  Maze generator (ported from modules/core/maze_generator.py)
+  // ============================================================
+
+  const CENTER_RHO = 1.0 / 6.0;
+  const TWO_PI = Math.PI * 2;
+
+  // --- Seeded RNG (mulberry32) so same seed gives same maze ---
+  function makeRng(seed) {
+    let s = seed >>> 0;
+    return {
+      next() {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = s;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      },
+      int(maxExclusive) { return Math.floor(this.next() * maxExclusive); },
+      choice(arr) { return arr[this.int(arr.length)]; },
+    };
+  }
+
+  // --- frozenset surrogate: canonical string key for an unordered cell pair ---
+  function pairKey(a, b) {
+    const ka = `${a[0]}.${a[1]}`;
+    const kb = `${b[0]}.${b[1]}`;
+    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+  }
+
+  function cellKey(c) { return `${c[0]}.${c[1]}`; }
+
+  class CircularMazeGrid {
+    constructor(rings, sectors = 12) {
+      this.rings = rings;
+      this.sectors = sectors;
+      this.cell_counts = this._computeCellCounts(rings, sectors);
+      this.linksSet = new Set();
+      this.cells = [];
+      this.neighbors = new Map(); // cellKey -> list of cells
+      this._buildGrid();
+    }
+
+    _computeCellCounts(rings, baseSectors) {
+      const counts = [1];
+      let current = baseSectors;
+      for (let r = 1; r <= rings; r++) {
+        const ringRho = CENTER_RHO + (r / rings) * (1.0 - CENTER_RHO);
+        const cellArc = TWO_PI * ringRho / current;
+        const cellHeight = (1.0 - CENTER_RHO) / rings;
+        if (cellArc > cellHeight * 2 && r > 1) current *= 2;
+        counts.push(current);
+      }
+      return counts;
+    }
+
+    _addNeighbor(cell, nb) {
+      const k = cellKey(cell);
+      if (!this.neighbors.has(k)) this.neighbors.set(k, []);
+      const list = this.neighbors.get(k);
+      if (!list.some(n => n[0] === nb[0] && n[1] === nb[1])) list.push(nb);
+    }
+
+    _buildGrid() {
+      for (let r = 0; r <= this.rings; r++) {
+        for (let i = 0; i < this.cell_counts[r]; i++) this.cells.push([r, i]);
+      }
+      for (let r = 0; r <= this.rings; r++) {
+        const count = this.cell_counts[r];
+        for (let i = 0; i < count; i++) {
+          const cell = [r, i];
+          if (count > 1) {
+            const cw = [r, (i + 1) % count];
+            const ccw = [r, (i - 1 + count) % count];
+            this._addNeighbor(cell, cw);
+            this._addNeighbor(cell, ccw);
+          }
+          if (r < this.rings) {
+            const outerCount = this.cell_counts[r + 1];
+            if (r === 0) {
+              for (let k = 0; k < outerCount; k++) {
+                const oc = [1, k];
+                this._addNeighbor(cell, oc);
+                this._addNeighbor(oc, cell);
+              }
+            } else if (outerCount === count) {
+              const oc = [r + 1, i];
+              this._addNeighbor(cell, oc);
+              this._addNeighbor(oc, cell);
+            } else {
+              const ratio = outerCount / count;
+              for (let k = 0; k < ratio; k++) {
+                const oc = [r + 1, i * ratio + k];
+                this._addNeighbor(cell, oc);
+                this._addNeighbor(oc, cell);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    neighborsOf(cell) {
+      return this.neighbors.get(cellKey(cell)) || [];
+    }
+
+    link(a, b) { this.linksSet.add(pairKey(a, b)); }
+    isLinked(a, b) { return this.linksSet.has(pairKey(a, b)); }
+
+    cellAngleRange(cell) {
+      const [r, i] = cell;
+      const count = this.cell_counts[r];
+      const a = TWO_PI / count;
+      return [i * a, (i + 1) * a];
+    }
+
+    cellRadiusRange(cell) {
+      const [r] = cell;
+      if (r === 0) return [0, CENTER_RHO];
+      const inner = CENTER_RHO + ((r - 1) / this.rings) * (1.0 - CENTER_RHO);
+      const outer = CENTER_RHO + (r / this.rings) * (1.0 - CENTER_RHO);
+      return [inner, outer];
+    }
+
+    cellCenterPolar(cell) {
+      const [r, i] = cell;
+      if (r === 0) return [0, 0.01];
+      const count = this.cell_counts[r];
+      const theta = ((i + 0.5) / count) * TWO_PI;
+      const [inner, outer] = this.cellRadiusRange(cell);
+      return [theta, (inner + outer) / 2];
+    }
+
+    polarToCell(theta, rho) {
+      if (rho <= CENTER_RHO) return [0, 0];
+      for (let r = 1; r <= this.rings; r++) {
+        const [, outer] = this.cellRadiusRange([r, 0]);
+        if (rho <= outer + 0.001) {
+          const count = this.cell_counts[r];
+          let t = theta % TWO_PI;
+          if (t < 0) t += TWO_PI;
+          const sector = Math.floor((t / TWO_PI) * count) % count;
+          return [r, sector];
+        }
+      }
+      return [this.rings, 0];
+    }
+
+    getNeighborInDirection(cell, direction) {
+      const [r, i] = cell;
+      if (direction === 'cw' || direction === 'ccw') {
+        const count = this.cell_counts[r];
+        if (count <= 1) return null;
+        const nb = direction === 'cw'
+          ? [r, (i + 1) % count]
+          : [r, (i - 1 + count) % count];
+        return this.isLinked(cell, nb) ? nb : null;
+      }
+      if (direction === 'out') {
+        if (r >= this.rings) return null;
+        for (const n of this.neighborsOf(cell)) {
+          if (n[0] === r + 1 && this.isLinked(cell, n)) return n;
+        }
+        return null;
+      }
+      if (direction === 'in') {
+        if (r === 0) return null;
+        for (const n of this.neighborsOf(cell)) {
+          if (n[0] === r - 1 && this.isLinked(cell, n)) return n;
+        }
+        return null;
+      }
+      return null;
+    }
+  }
+
+  // --- generateMaze: returns { grid_data, path } ---
+  function generateMaze(rings, sectors = 12, seed = null) {
+    rings = Math.max(3, Math.min(8, rings));
+    sectors = Math.max(6, Math.min(48, sectors));
+    if (seed === null) seed = Math.floor(Math.random() * 1000000);
+    const rng = makeRng(seed);
+
+    const grid = new CircularMazeGrid(rings, sectors);
+
+    // Recursive backtracking
+    const visited = new Set();
+    const startCell = [rings, rng.int(grid.cell_counts[rings])];
+    visited.add(cellKey(startCell));
+    const stack = [startCell];
+
+    while (stack.length) {
+      const cell = stack[stack.length - 1];
+      const unv = grid.neighborsOf(cell).filter(n => !visited.has(cellKey(n)));
+      if (unv.length) {
+        const next = rng.choice(unv);
+        grid.link(cell, next);
+        visited.add(cellKey(next));
+        stack.push(next);
+      } else {
+        stack.pop();
+      }
+    }
+
+    const entrance_cell = startCell;
+
+    // Center exit
+    const center = [0, 0];
+    const centerNbs = grid.neighborsOf(center);
+    let exitNeighbor = null;
+    for (const n of centerNbs) {
+      if (grid.isLinked(center, n)) { exitNeighbor = n; break; }
+    }
+    if (exitNeighbor === null && centerNbs.length) {
+      exitNeighbor = rng.choice(centerNbs);
+      grid.link(center, exitNeighbor);
+    }
+
+    const walls = extractWalls(grid, entrance_cell);
+    const path = traceWalls(walls, grid, entrance_cell);
+
+    const grid_data = {
+      rings, sectors,
+      cell_counts: grid.cell_counts,
+      walls,
+      entrance_cell,
+      links: Array.from(grid.linksSet),  // for re-hydration
+    };
+    return { grid_data, path, seed };
+  }
+
+  // --- extractWalls (port) ---
+  function extractWalls(grid, entrance_cell) {
+    const walls = [];
+    for (let r = 1; r <= grid.rings; r++) {
+      const count = grid.cell_counts[r];
+      for (let i = 0; i < count; i++) {
+        const cell = [r, i];
+        const [startA, endA] = grid.cellAngleRange(cell);
+        const [innerR, outerR] = grid.cellRadiusRange(cell);
+
+        let innerCell;
+        if (r === 1) innerCell = [0, 0];
+        else {
+          const ic = grid.cell_counts[r - 1];
+          if (ic === count) innerCell = [r - 1, i];
+          else innerCell = [r - 1, Math.floor(i / (count / ic))];
+        }
+        if (!grid.isLinked(cell, innerCell)) {
+          walls.push({
+            type: 'arc',
+            rho: innerR,
+            start: startA,
+            end: endA,
+            node_a: ['b', r, i],
+            node_b: ['b', r, (i + 1) % count],
+          });
+        }
+
+        const cw = [r, (i + 1) % count];
+        if (!grid.isLinked(cell, cw)) {
+          const innerNode = ['b', r, (i + 1) % count];
+          let outerNode;
+          if (r < grid.rings) {
+            const oc = grid.cell_counts[r + 1];
+            if (oc === count) outerNode = ['b', r + 1, (i + 1) % count];
+            else {
+              const ratio = oc / count;
+              outerNode = ['b', r + 1, ((i + 1) % count) * ratio];
+            }
+          } else outerNode = ['b', r + 1, (i + 1) % count];
+          walls.push({
+            type: 'radial',
+            angle: endA,
+            inner_rho: innerR,
+            outer_rho: outerR,
+            node_a: innerNode,
+            node_b: outerNode,
+          });
+        }
+      }
+    }
+    const outerCount = grid.cell_counts[grid.rings];
+    const rbOuter = grid.rings + 1;
+    for (let i = 0; i < outerCount; i++) {
+      const cell = [grid.rings, i];
+      if (cell[0] === entrance_cell[0] && cell[1] === entrance_cell[1]) continue;
+      const [startA, endA] = grid.cellAngleRange(cell);
+      const [, outerR] = grid.cellRadiusRange(cell);
+      walls.push({
+        type: 'arc',
+        rho: outerR,
+        start: startA,
+        end: endA,
+        node_a: ['b', rbOuter, i],
+        node_b: ['b', rbOuter, (i + 1) % outerCount],
+      });
+    }
+    return walls;
+  }
+
+  // --- traceWalls: DFS with Dijkstra backtracking (port) ---
+  function nodeKey(n) { return `${n[0]}|${n[1]}|${n[2]}`; }
+  function ptDist(a, b) {
+    const da = a[1] - b[1];
+    const db = a[2] - b[2];
+    return Math.sqrt(da * da + db * db);
+  }
+
+  // Min-heap (binary) for Dijkstra
+  class MinHeap {
+    constructor() { this.a = []; }
+    get size() { return this.a.length; }
+    push(item) {
+      this.a.push(item);
+      this._up(this.a.length - 1);
+    }
+    pop() {
+      if (!this.a.length) return undefined;
+      const top = this.a[0];
+      const last = this.a.pop();
+      if (this.a.length) { this.a[0] = last; this._down(0); }
+      return top;
+    }
+    _up(i) {
+      while (i > 0) {
+        const p = (i - 1) >> 1;
+        if (this.a[p][0] > this.a[i][0]) { [this.a[p], this.a[i]] = [this.a[i], this.a[p]]; i = p; }
+        else break;
+      }
+    }
+    _down(i) {
+      const n = this.a.length;
+      while (true) {
+        const l = 2 * i + 1, r = 2 * i + 2;
+        let best = i;
+        if (l < n && this.a[l][0] < this.a[best][0]) best = l;
+        if (r < n && this.a[r][0] < this.a[best][0]) best = r;
+        if (best !== i) { [this.a[best], this.a[i]] = [this.a[i], this.a[best]]; i = best; }
+        else break;
+      }
+    }
+  }
+
+  function traceWalls(walls, grid, entrance_cell) {
+    const POINTS_PER_ARC = 10;
+    const POINTS_PER_RADIAL = 5;
+    if (!walls.length) return [];
+
+    // Build adjacency
+    const adj = new Map();    // nodeKey -> [(nbNode, edgeId)]
+    const nodeMap = new Map(); // nodeKey -> nodeArray
+    const edgeList = [];
+    const edgeWeights = [];
+
+    const addAdj = (n, nb, eid) => {
+      const k = nodeKey(n);
+      if (!adj.has(k)) adj.set(k, []);
+      adj.get(k).push([nb, eid]);
+      if (!nodeMap.has(k)) nodeMap.set(k, n);
+    };
+
+    for (const w of walls) {
+      const eid = edgeList.length;
+      let weight;
+      if (w.type === 'arc') weight = Math.abs(w.end - w.start) * w.rho;
+      else if (w.type === 'radial') weight = Math.abs(w.outer_rho - w.inner_rho);
+      else continue;
+      addAdj(w.node_a, w.node_b, eid);
+      addAdj(w.node_b, w.node_a, eid);
+      edgeList.push([w.node_a, w.node_b, w]);
+      edgeWeights.push(weight);
+    }
+    if (!adj.size) return [];
+
+    const visitedEdges = new Set();
+    const nodePath = [];
+
+    // Start from innermost node
+    let startKey = null, startNode = null;
+    for (const [k, n] of nodeMap) {
+      if (startNode === null || n[1] < startNode[1]) { startNode = n; startKey = k; }
+    }
+    let current = startNode;
+
+    const getUnvisitedFrom = (n) => {
+      const list = adj.get(nodeKey(n)) || [];
+      return list.filter(([, eid]) => !visitedEdges.has(eid));
+    };
+
+    const dijkstraToNearestUnvisited = (source) => {
+      const sourceKey = nodeKey(source);
+      const dist = new Map([[sourceKey, 0]]);
+      const prev = new Map([[sourceKey, null]]);
+      const heap = new MinHeap();
+      let counter = 0;
+      heap.push([0, counter++, source]);
+      while (heap.size) {
+        const [d, , u] = heap.pop();
+        const uk = nodeKey(u);
+        if (d > (dist.get(uk) ?? Infinity)) continue;
+        if (uk !== sourceKey && getUnvisitedFrom(u).length) {
+          // Reconstruct path
+          const route = [];
+          let nk = uk;
+          while (nk !== null) {
+            route.push(nodeMap.get(nk));
+            nk = prev.get(nk);
+          }
+          route.reverse();
+          return route;
+        }
+        for (const [nb, eid] of (adj.get(uk) || [])) {
+          const nbk = nodeKey(nb);
+          const w = edgeWeights[eid];
+          const nd = d + w;
+          if (nd < (dist.get(nbk) ?? Infinity)) {
+            dist.set(nbk, nd);
+            prev.set(nbk, uk);
+            heap.push([nd, counter++, nb]);
+          }
+        }
+      }
+      return null;
+    };
+
+    nodePath.push(current);
+
+    while (visitedEdges.size < edgeList.length) {
+      const unv = getUnvisitedFrom(current);
+      if (unv.length) {
+        const [nb, eid] = unv[0];
+        visitedEdges.add(eid);
+        current = nb;
+        nodePath.push(current);
+      } else {
+        const route = dijkstraToNearestUnvisited(current);
+        if (route !== null) {
+          for (let i = 1; i < route.length; i++) nodePath.push(route[i]);
+          current = route[route.length - 1];
+        } else {
+          // Disconnected — bridge to nearest unvisited
+          let bestNode = null;
+          let bestDist = Infinity;
+          for (const [k, n] of nodeMap) {
+            if (getUnvisitedFrom(n).length) {
+              const d = ptDist(current, n);
+              if (d < bestDist) { bestDist = d; bestNode = n; }
+            }
+          }
+          if (bestNode === null) break;
+          const midNode = [bestNode[0], current[1], current[2]];
+          nodePath.push(midNode);
+          nodePath.push(bestNode);
+          current = bestNode;
+        }
+      }
+    }
+
+    // Convert nodes to polar
+    const rings = grid.rings;
+    const nodeToPolar = (node) => {
+      const [, rb, s] = node;
+      const countAtBoundary = rb <= rings ? grid.cell_counts[rb] : grid.cell_counts[rings];
+      const theta = (s / countAtBoundary) * TWO_PI;
+      let rho = rb > 0 ? CENTER_RHO + ((rb - 1) / rings) * (1.0 - CENTER_RHO) : 0.01;
+      rho = Math.max(0.01, Math.min(1.0, rho));
+      return [theta, rho];
+    };
+
+    const path = [];
+    const firstPolar = nodePath.length ? nodeToPolar(nodePath[0]) : [0, 0.01];
+    path.push([firstPolar[0], 0.01]);
+    for (let j = 1; j <= POINTS_PER_RADIAL; j++) {
+      const t = j / POINTS_PER_RADIAL;
+      path.push([firstPolar[0], 0.01 + t * (firstPolar[1] - 0.01)]);
+    }
+
+    for (let i = 1; i < nodePath.length; i++) {
+      const cur = nodeToPolar(nodePath[i]);
+      const prev = nodeToPolar(nodePath[i - 1]);
+      if (Math.abs(cur[1] - prev[1]) < 0.001) {
+        const rho = cur[1];
+        let delta = cur[0] - prev[0];
+        if (delta > Math.PI) delta -= TWO_PI;
+        else if (delta < -Math.PI) delta += TWO_PI;
+        const steps = Math.max(POINTS_PER_ARC, Math.floor(Math.abs(delta) / (Math.PI / 12)));
+        for (let j = 1; j <= steps; j++) {
+          const t = j / steps;
+          path.push([prev[0] + t * delta, rho]);
+        }
+      } else {
+        for (let j = 1; j <= POINTS_PER_RADIAL; j++) {
+          const t = j / POINTS_PER_RADIAL;
+          path.push([prev[0] + t * (cur[0] - prev[0]), prev[1] + t * (cur[1] - prev[1])]);
+        }
+      }
+    }
+
+    // Retrace to entrance node via Dijkstra through wall graph
+    if (nodePath.length && entrance_cell) {
+      const lastNode = nodePath[nodePath.length - 1];
+      const entranceTheta = ((entrance_cell[1] + 0.5) / grid.cell_counts[grid.rings]) * TWO_PI;
+      const outerRb = grid.rings + 1;
+      const outerCount = grid.cell_counts[grid.rings];
+
+      let bestEntranceNode = null;
+      let bestD = Infinity;
+      for (let s = 0; s < outerCount; s++) {
+        const node = ['b', outerRb, s];
+        if (adj.has(nodeKey(node))) {
+          const np = nodeToPolar(node);
+          let d = Math.abs(np[0] - entranceTheta);
+          if (d > Math.PI) d = TWO_PI - d;
+          if (d < bestD) { bestD = d; bestEntranceNode = node; }
+        }
+      }
+
+      if (bestEntranceNode && nodeKey(bestEntranceNode) !== nodeKey(lastNode)) {
+        const startKey2 = nodeKey(lastNode);
+        const distMap = new Map([[startKey2, 0]]);
+        const prevMap = new Map([[startKey2, null]]);
+        const heap = new MinHeap();
+        let counter = 0;
+        heap.push([0, counter++, lastNode]);
+        const targetKey = nodeKey(bestEntranceNode);
+        let found = false;
+        while (heap.size) {
+          const [d, , u] = heap.pop();
+          const uk = nodeKey(u);
+          if (d > (distMap.get(uk) ?? Infinity)) continue;
+          if (uk === targetKey) { found = true; break; }
+          for (const [nb, eid] of (adj.get(uk) || [])) {
+            const nbk = nodeKey(nb);
+            const w = edgeWeights[eid];
+            const nd = d + w;
+            if (nd < (distMap.get(nbk) ?? Infinity)) {
+              distMap.set(nbk, nd);
+              prevMap.set(nbk, uk);
+              heap.push([nd, counter++, nb]);
+            }
+          }
+        }
+
+        if (found) {
+          const retrace = [];
+          let nk = targetKey;
+          while (nk !== null) {
+            retrace.push(nodeMap.get(nk));
+            nk = prevMap.get(nk);
+          }
+          retrace.reverse();
+          for (let idx = 1; idx < retrace.length; idx++) {
+            const node = retrace[idx];
+            const curP = nodeToPolar(node);
+            const prevP = path.length ? path[path.length - 1] : [0, 0.01];
+            let dTheta = curP[0] - prevP[0];
+            if (dTheta > Math.PI) dTheta -= TWO_PI;
+            else if (dTheta < -Math.PI) dTheta += TWO_PI;
+            if (Math.abs(curP[1] - prevP[1]) < 0.001) {
+              const rho = curP[1];
+              const steps = Math.max(POINTS_PER_ARC, Math.floor(Math.abs(dTheta) / (Math.PI / 12)));
+              for (let j = 1; j <= steps; j++) {
+                const t = j / steps;
+                path.push([prevP[0] + t * dTheta, rho]);
+              }
+            } else if (Math.abs(dTheta) < 0.001) {
+              for (let j = 1; j <= POINTS_PER_RADIAL; j++) {
+                const t = j / POINTS_PER_RADIAL;
+                path.push([prevP[0], prevP[1] + t * (curP[1] - prevP[1])]);
+              }
+            } else {
+              const midTheta = prevP[0] + dTheta;
+              const steps = Math.max(POINTS_PER_ARC, Math.floor(Math.abs(dTheta) / (Math.PI / 12)));
+              for (let j = 1; j <= steps; j++) {
+                const t = j / steps;
+                path.push([prevP[0] + t * dTheta, prevP[1]]);
+              }
+              for (let j = 1; j <= POINTS_PER_RADIAL; j++) {
+                const t = j / POINTS_PER_RADIAL;
+                path.push([midTheta, prevP[1] + t * (curP[1] - prevP[1])]);
+              }
+            }
+          }
+        }
+      }
+
+      // Move to outer edge then along edge to entrance theta
+      if (path.length) {
+        let last = path[path.length - 1];
+        if (last[1] < 0.99) {
+          for (let j = 1; j <= POINTS_PER_RADIAL; j++) {
+            const t = j / POINTS_PER_RADIAL;
+            path.push([last[0], last[1] + t * (1.0 - last[1])]);
+          }
+        }
+        last = path[path.length - 1];
+        let delta = entranceTheta - last[0];
+        if (delta > Math.PI) delta -= TWO_PI;
+        else if (delta < -Math.PI) delta += TWO_PI;
+        if (Math.abs(delta) > 0.01) {
+          const steps = Math.max(POINTS_PER_ARC, Math.floor(Math.abs(delta) / (Math.PI / 12)));
+          for (let j = 1; j <= steps; j++) {
+            const t = j / steps;
+            path.push([last[0] + t * delta, 1.0]);
+          }
+        }
+      }
+    }
+
+    return unwrapTheta(path);
+  }
+
+  function unwrapTheta(path) {
+    if (!path.length) return [];
+    const out = [path[0]];
+    let cumulative = path[0][0];
+    let prevRaw = path[0][0];
+    for (let i = 1; i < path.length; i++) {
+      const [theta, rho] = path[i];
+      let delta = theta - prevRaw;
+      if (delta > Math.PI) delta -= TWO_PI;
+      else if (delta < -Math.PI) delta += TWO_PI;
+      cumulative += delta;
+      prevRaw = theta;
+      out.push([cumulative, rho]);
+    }
+    return out;
+  }
+
+  // ============================================================
+  //  UI / app state
+  // ============================================================
+
+  const state = {
+    ringsInput: '6',
+    grid: null,            // CircularMazeGrid
+    grid_data: null,       // serializable preview data
+    path: null,            // generated path [[theta,rho], ...]
+    entrance_cell: null,
+    savedFile: null,
+    playing: false,
+    solving: false,
+    solved: false,
+    fpvMode: false,
+    facing: 'in',
+    isRunning: false,
+    moveActive: false,
+    moveInflight: false,
+    moveInterval: null,
+    currentTheta: 0,
+    currentRho: 0,
+    solveCell: null,
+    savedMazes: [],        // localStorage-only
+    generating: false,
+    stepFactor: 0.3,       // fraction of a cell ring height per press
+  };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem('maze_state_standalone') || 'null');
+    if (saved) {
+      if (saved.ringsInput) state.ringsInput = saved.ringsInput;
+      if (saved.savedFile) state.savedFile = saved.savedFile;
+      if (typeof saved.stepFactor === 'number' && saved.stepFactor >= 0.05 && saved.stepFactor <= 1.0) {
+        state.stepFactor = saved.stepFactor;
+      }
+    }
+  } catch { /* ignore */ }
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    rings: $('rings'),
+    generateBtn: $('generateBtn'),
+    previewWrap: $('previewWrap'),
+    canvas: $('mazeCanvas'),
+    actionsRow: $('actionsRow'),
+    saveBtn: $('saveBtn'),
+    playBtn: $('playBtn'),
+    solveBtn: $('solveBtn'),
+    playingMsg: $('playingMsg'),
+    solveControls: $('solveControls'),
+    fpvMode: $('fpvMode'),
+    fpvLabel: $('fpvLabel'),
+    solveHelp: $('solveHelp'),
+    exitSolveBtn: $('exitSolveBtn'),
+    solvedMsg: $('solvedMsg'),
+    savedCard: $('savedCard'),
+    savedList: $('savedList'),
+    saveModal: $('saveModal'),
+    saveName: $('saveName'),
+    saveCancelBtn: $('saveCancelBtn'),
+    saveConfirmBtn: $('saveConfirmBtn'),
+    toast: $('toast'),
+    settingsBtn: $('settingsBtn'),
+    settingsModal: $('settingsModal'),
+    stepRange: $('stepRange'),
+    stepVal: $('stepVal'),
+    settingsCloseBtn: $('settingsCloseBtn'),
+  };
+  els.rings.value = state.ringsInput;
+  els.stepRange.value = String(state.stepFactor);
+  els.stepVal.textContent = state.stepFactor.toFixed(2);
+
+  let toastTimer = null;
+  const toast = (msg, isError = false) => {
+    els.toast.textContent = msg;
+    els.toast.classList.toggle('error', isError);
+    els.toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2400);
+  };
+
+  const persist = () => {
+    try {
+      localStorage.setItem('maze_state_standalone', JSON.stringify({
+        ringsInput: state.ringsInput,
+        savedFile: state.savedFile,
+        stepFactor: state.stepFactor,
+      }));
+    } catch { /* ignore */ }
+  };
+
+  // ---- Saved mazes (localStorage only) ----
+  const SAVED_KEY = 'maze_saved_standalone';
+  const loadSavedMazes = () => {
+    try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch { return []; }
+  };
+  const writeSavedMazes = (arr) => {
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(arr)); } catch { /* ignore */ }
+  };
+  const refreshSavedMazes = () => {
+    state.savedMazes = loadSavedMazes();
+    renderSavedList();
+  };
+
+  // ---- Render ----
+  const render = () => {
+    els.previewWrap.classList.toggle('hidden', !state.grid_data);
+    const showActions = state.path && !state.solving;
+    els.actionsRow.classList.toggle('hidden', !showActions);
+    els.playBtn.classList.toggle('hidden', !(state.savedFile && !state.playing));
+    els.solveBtn.classList.toggle('hidden', !(state.grid && !state.playing && !state.isRunning));
+    els.playingMsg.classList.toggle('hidden', !state.playing);
+    els.solveControls.classList.toggle('hidden', !state.solving);
+    els.fpvLabel.textContent = state.fpvMode
+      ? `First-person view (facing ${state.facing})`
+      : 'First-person view';
+    els.fpvMode.checked = state.fpvMode;
+    els.solveHelp.textContent = state.fpvMode
+      ? 'Up=forward, Down=reverse, Left/Right=turn'
+      : 'Up=out, Down=in, Left=CCW, Right=CW';
+    els.solvedMsg.classList.toggle('hidden', !state.solved);
+    els.generateBtn.disabled = state.generating;
+    els.generateBtn.textContent = state.generating ? 'Generating...' : 'Generate Maze';
+    const visibleSaved = state.savedMazes.length > 0 && !state.solving;
+    els.savedCard.classList.toggle('hidden', !visibleSaved);
+    if (state.grid_data) drawPreview(state.grid_data);
+  };
+
+  const renderSavedList = () => {
+    els.savedList.innerHTML = '';
+    for (const maze of state.savedMazes) {
+      const row = document.createElement('div');
+      row.className = 'saved-item';
+      const name = document.createElement('span');
+      name.className = 'saved-name';
+      name.textContent = maze.name;
+      const actions = document.createElement('div');
+      actions.className = 'saved-actions';
+      const playBtn = document.createElement('button');
+      playBtn.className = 'btn btn-ghost';
+      playBtn.textContent = 'Play';
+      playBtn.onclick = () => handlePlaySaved(maze);
+      actions.appendChild(playBtn);
+      if (maze.grid_data) {
+        const solveBtnEl = document.createElement('button');
+        solveBtnEl.className = 'btn btn-ghost';
+        solveBtnEl.textContent = 'Solve';
+        solveBtnEl.onclick = () => handleSolveSaved(maze);
+        actions.appendChild(solveBtnEl);
+      }
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-ghost';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Forget (does not delete .thr file)';
+      delBtn.onclick = () => {
+        const arr = loadSavedMazes().filter(m => m.name !== maze.name);
+        writeSavedMazes(arr);
+        refreshSavedMazes();
+      };
+      actions.appendChild(delBtn);
+      row.appendChild(name);
+      row.appendChild(actions);
+      els.savedList.appendChild(row);
+    }
+    render();
+  };
+
+  // ---- Canvas preview ----
+  const drawPreview = (grid_data) => {
+    const canvas = els.canvas;
+    if (!canvas || !grid_data) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    // Size canvas to the largest square that fits in the wrap
+    const wrap = canvas.parentElement;
+    const wrapW = wrap?.clientWidth || 0;
+    const wrapH = wrap?.clientHeight || 0;
+    const size = Math.max(50, Math.min(wrapW, wrapH));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    if (canvas.width !== Math.round(size * dpr)) {
+      canvas.width = Math.round(size * dpr);
+      canvas.height = Math.round(size * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cx = size / 2, cy = size / 2, r = (size / 2) - 4;
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = 'rgba(30,30,30,0.8)';
+    ctx.beginPath(); ctx.arc(cx, cy, r + 2, 0, TWO_PI); ctx.fill();
+
+    const walls = grid_data.walls || [];
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    for (const w of walls) {
+      if (w.type === 'arc') {
+        const pixelRho = w.rho * r;
+        ctx.beginPath();
+        ctx.arc(cx, cy, pixelRho, w.start - Math.PI / 2, w.end - Math.PI / 2);
+        ctx.stroke();
+      } else if (w.type === 'radial') {
+        const ang = w.angle - Math.PI / 2;
+        const ip = w.inner_rho * r;
+        const op = w.outer_rho * r;
+        ctx.beginPath();
+        ctx.moveTo(cx + ip * Math.cos(ang), cy + ip * Math.sin(ang));
+        ctx.lineTo(cx + op * Math.cos(ang), cy + op * Math.sin(ang));
+        ctx.stroke();
+      }
+    }
+    if (grid_data.entrance_cell) {
+      const ei = grid_data.entrance_cell[1];
+      const oc = grid_data.cell_counts[grid_data.cell_counts.length - 1];
+      const eMid = ((ei + 0.5) / oc) * TWO_PI - Math.PI / 2;
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath(); ctx.arc(cx + r * Math.cos(eMid), cy + r * Math.sin(eMid), 4, 0, TWO_PI); ctx.fill();
+    }
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, TWO_PI); ctx.fill();
+  };
+
+  // ---- API (stock endpoints only) ----
+  const API = window.location.origin;
+
+  const apiPostJson = async (path, body) => {
+    const resp = await fetch(API + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    if (!resp.ok) {
+      let msg = 'Request failed';
+      try { const j = await resp.json(); msg = j.detail || j.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    return resp.json();
+  };
+
+  // Upload .thr text via /upload_theta_rho (multipart)
+  const uploadThr = async (filename, content) => {
+    const fd = new FormData();
+    const blob = new Blob([content], { type: 'text/plain' });
+    fd.append('file', blob, filename);
+    const resp = await fetch(API + '/upload_theta_rho', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      let msg = 'Upload failed';
+      try { const j = await resp.json(); msg = j.detail || msg; } catch {}
+      throw new Error(msg);
+    }
+    return resp.json();
+  };
+
+  // ---- Hydrate grid from saved data ----
+  const hydrateGrid = (gd) => {
+    const g = new CircularMazeGrid(gd.rings, gd.sectors);
+    if (gd.links) for (const k of gd.links) g.linksSet.add(k);
+    return g;
+  };
+
+  // ---- Generate ----
+  const handleGenerate = async () => {
+    state.generating = true;
+    state.savedFile = null;
+    persist();
+    render();
+    try {
+      const rings = parseInt(els.rings.value) || 6;
+      // Async via micro-yield to keep UI responsive
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const result = generateMaze(rings, 12, null);
+      state.grid = hydrateGrid(result.grid_data);
+      state.grid_data = result.grid_data;
+      state.path = result.path;
+      state.entrance_cell = result.grid_data.entrance_cell;
+      state.solving = false;
+      state.solved = false;
+      state.playing = false;
+      toast(`Maze generated (seed: ${result.seed})`);
+    } catch (e) {
+      toast(e.message || 'Failed to generate maze', true);
+    } finally {
+      state.generating = false;
+      render();
+    }
+  };
+
+  // ---- Save ----
+  const openSaveModal = () => {
+    els.saveName.value = '';
+    els.saveModal.classList.add('show');
+    setTimeout(() => els.saveName.focus(), 50);
+  };
+  const closeSaveModal = () => els.saveModal.classList.remove('show');
+
+  const handleSave = async () => {
+    if (!state.path) return;
+    const rawName = els.saveName.value.trim() || `maze-${Date.now()}`;
+    const safe = rawName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || `maze-${Date.now()}`;
+    const filename = safe + '.thr';
+    els.saveConfirmBtn.disabled = true;
+    els.saveConfirmBtn.textContent = 'Saving...';
+    try {
+      const lines = state.path.map(([t, r]) => {
+        const rr = Math.max(0.01, Math.min(1.0, r));
+        return `${t.toFixed(3)} ${rr.toFixed(3)}`;
+      });
+      const content = lines.join('\n') + '\n';
+      await uploadThr(filename, content);
+      // /upload_theta_rho stores under custom_patterns/
+      const filePath = `custom_patterns/${filename}`;
+      state.savedFile = filePath;
+      persist();
+      // Also remember in localStorage list for solve mode
+      const arr = loadSavedMazes();
+      const next = arr.filter(m => m.file !== filePath);
+      next.unshift({
+        name: safe,
+        file: filePath,
+        grid_data: state.grid_data,
+        saved_at: Date.now(),
+      });
+      writeSavedMazes(next.slice(0, 50));
+      refreshSavedMazes();
+      closeSaveModal();
+      toast(`Maze saved: ${filePath}`);
+    } catch (e) {
+      toast(e.message || 'Failed to save maze', true);
+    } finally {
+      els.saveConfirmBtn.disabled = false;
+      els.saveConfirmBtn.textContent = 'Save';
+      render();
+    }
+  };
+
+  // ---- Play ----
+  const playFile = async (filePath) => {
+    await apiPostJson('/run_theta_rho', { file_name: filePath, pre_execution: 'none' });
+  };
+
+  const handlePlay = async () => {
+    if (!state.savedFile) return;
+    try {
+      await playFile(state.savedFile);
+      state.playing = true;
+      state.solving = false;
+      state.solved = false;
+      toast('Drawing maze...');
+      render();
+    } catch (e) {
+      toast(e.message || 'Failed to play maze', true);
+    }
+  };
+
+  const handlePlaySaved = async (maze) => {
+    try {
+      await playFile(maze.file);
+      state.playing = true;
+      state.savedFile = maze.file;
+      persist();
+      toast('Drawing maze...');
+      render();
+    } catch (e) {
+      toast(e.message || 'Failed to play', true);
+    }
+  };
+
+  const handleSolveSaved = async (maze) => {
+    if (!maze.grid_data) { toast('No grid data for this maze', true); return; }
+    state.grid_data = maze.grid_data;
+    state.grid = hydrateGrid(maze.grid_data);
+    state.entrance_cell = maze.grid_data.entrance_cell;
+    state.path = []; // not needed for solving
+    await enterSolveMode();
+  };
+
+  // ---- Solve mode ----
+  const moveBallTo = async (theta, rho) => {
+    return apiPostJson('/send_coordinate', { theta, rho });
+  };
+
+  const enterSolveMode = async () => {
+    if (!state.grid || !state.entrance_cell) return;
+    try {
+      // Move ball to entrance via outer edge
+      const entranceTheta = ((state.entrance_cell[1] + 0.5) / state.grid.cell_counts[state.grid.rings]) * TWO_PI;
+      // 1) move to perimeter at current theta (or just go directly to entrance)
+      await moveBallTo(entranceTheta, 1.0);
+      state.currentTheta = entranceTheta;
+      state.currentRho = 1.0;
+      state.solveCell = [state.grid.rings, state.entrance_cell[1]];
+      state.solving = true;
+      state.solved = false;
+      state.facing = 'in';
+      render();
+    } catch (e) {
+      toast(e.message || 'Failed to start solve mode', true);
+    }
+  };
+
+  const handleSolveStart = async () => {
+    await enterSolveMode();
+  };
+
+  const handleSolveStop = async () => {
+    stopMove();
+    state.solving = false;
+    render();
+  };
+
+  // ---- Movement (with FPV) ----
+  const resolveDirection = (input) => {
+    if (!state.fpvMode) return input;
+    const leftOf = { 'in': 'cw', 'cw': 'out', 'out': 'ccw', 'ccw': 'in' };
+    const rightOf = { 'in': 'ccw', 'ccw': 'out', 'out': 'cw', 'cw': 'in' };
+    const reverseOf = { 'in': 'out', 'out': 'in', 'cw': 'ccw', 'ccw': 'cw' };
+    if (input === 'out') return state.facing;
+    if (input === 'in') return reverseOf[state.facing];
+    if (input === 'ccw') return leftOf[state.facing];
+    if (input === 'cw') return rightOf[state.facing];
+    return input;
+  };
+
+  const doMove = async (direction) => {
+    const grid = state.grid;
+    if (!grid) return false;
+
+    const ringHeight = (1.0 - grid.cellRadiusRange([1, 0])[0]) / grid.rings;
+    const step = ringHeight * state.stepFactor;
+
+    let targetTheta = state.currentTheta;
+    let targetRho = state.currentRho;
+    if (direction === 'out') targetRho = Math.min(1.0, targetRho + step);
+    else if (direction === 'in') targetRho = Math.max(0.01, targetRho - step);
+    else if (direction === 'cw') {
+      const curRho = Math.max(state.currentRho, 0.05);
+      targetTheta = targetTheta + (step / curRho);
+    } else if (direction === 'ccw') {
+      const curRho = Math.max(state.currentRho, 0.05);
+      targetTheta = targetTheta - (step / curRho);
+    }
+
+    const fromCell = grid.polarToCell(state.currentTheta, state.currentRho);
+    const toCell = grid.polarToCell(targetTheta, targetRho);
+
+    const sameCell = fromCell[0] === toCell[0] && fromCell[1] === toCell[1];
+    if (!sameCell) {
+      // Check passage
+      const isLinked = grid.isLinked(fromCell, toCell);
+      const nbList = grid.neighborsOf(fromCell);
+      const isNeighbor = nbList.some(n => n[0] === toCell[0] && n[1] === toCell[1]);
+      if (!isLinked || !isNeighbor) {
+        // Wall — clamp to before boundary
+        const halfStep = step * 2;
+        if (direction === 'out') {
+          const [, outer] = grid.cellRadiusRange(fromCell);
+          targetRho = outer - halfStep;
+        } else if (direction === 'in') {
+          const [inner] = grid.cellRadiusRange(fromCell);
+          targetRho = inner + halfStep;
+        } else if (direction === 'cw') {
+          const [, endA] = grid.cellAngleRange(fromCell);
+          let actualRaw = state.currentTheta % TWO_PI;
+          if (actualRaw < 0) actualRaw += TWO_PI;
+          let d = endA - actualRaw;
+          if (d > Math.PI) d -= TWO_PI; else if (d < -Math.PI) d += TWO_PI;
+          const curRho = Math.max(state.currentRho, 0.05);
+          const thetaMargin = halfStep / curRho;
+          targetTheta = state.currentTheta + Math.max(0, d - thetaMargin);
+        } else if (direction === 'ccw') {
+          const [startA] = grid.cellAngleRange(fromCell);
+          let actualRaw = state.currentTheta % TWO_PI;
+          if (actualRaw < 0) actualRaw += TWO_PI;
+          let d = startA - actualRaw;
+          if (d > Math.PI) d -= TWO_PI; else if (d < -Math.PI) d += TWO_PI;
+          const curRho = Math.max(state.currentRho, 0.05);
+          const thetaMargin = halfStep / curRho;
+          targetTheta = state.currentTheta + Math.min(0, d + thetaMargin);
+        }
+        // Verify still in same cell
+        const checkCell = grid.polarToCell(targetTheta, targetRho);
+        if (checkCell[0] !== fromCell[0] || checkCell[1] !== fromCell[1]) {
+          return false; // blocked — no move
+        }
+        try {
+          await moveBallTo(targetTheta, targetRho);
+          state.currentTheta = targetTheta;
+          state.currentRho = targetRho;
+        } catch { /* ignore */ }
+        return false; // wall reached
+      }
+    }
+
+    try {
+      await moveBallTo(targetTheta, targetRho);
+      state.currentTheta = targetTheta;
+      state.currentRho = targetRho;
+    } catch {
+      return false;
+    }
+
+    const finalCell = grid.polarToCell(state.currentTheta, state.currentRho);
+    state.solveCell = finalCell;
+    if (finalCell[0] === 0 && finalCell[1] === 0) {
+      state.solved = true;
+      state.solving = false;
+      // Drop the ball into the very center
+      try {
+        await moveBallTo(state.currentTheta, 0);
+        state.currentRho = 0;
+      } catch { /* ignore */ }
+      toast('Maze solved!');
+      render();
+      return false;
+    }
+    return true;
+  };
+
+  const startMove = (inputDir) => {
+    if (state.moveActive) return;
+    state.moveActive = true;
+    const absDir = resolveDirection(inputDir);
+    state.facing = absDir;
+    if (state.fpvMode) render();
+
+    const tick = async () => {
+      if (state.moveInflight || !state.moveActive) return;
+      state.moveInflight = true;
+      try {
+        const ok = await doMove(absDir);
+        if (!ok || !state.moveActive) stopMove();
+      } finally {
+        state.moveInflight = false;
+      }
+    };
+    tick();
+    state.moveInterval = setInterval(tick, 200);
+  };
+
+  const stopMove = () => {
+    state.moveActive = false;
+    if (state.moveInterval) {
+      clearInterval(state.moveInterval);
+      state.moveInterval = null;
+    }
+  };
+
+  // ---- WebSocket: track is_running + actual current_theta/rho ----
+  const connectStatusWS = () => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${window.location.host}/ws/status`;
+    let ws;
+    try { ws = new WebSocket(url); }
+    catch { setTimeout(connectStatusWS, 3000); return; }
+    ws.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        const d = data.data || data;
+        if (typeof d.is_running === 'boolean') {
+          const wasRunning = state.isRunning;
+          state.isRunning = d.is_running;
+          if (state.playing && !state.isRunning && wasRunning) {
+            state.playing = false;
+            render();
+          } else if (wasRunning !== state.isRunning) render();
+        }
+        if (typeof d.current_theta === 'number' && typeof d.current_rho === 'number') {
+          state.currentTheta = d.current_theta;
+          state.currentRho = d.current_rho;
+        }
+      } catch { /* ignore */ }
+    };
+    ws.onclose = () => setTimeout(connectStatusWS, 3000);
+    ws.onerror = () => { try { ws.close(); } catch {} };
+  };
+
+  // ---- Wire up ----
+  els.rings.addEventListener('input', (e) => {
+    state.ringsInput = e.target.value.replace(/[^0-9]/g, '');
+    e.target.value = state.ringsInput;
+    persist();
+  });
+  els.rings.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (state.generating) return;
+      handleGenerate().finally(() => {
+        // Re-focus and select so the user can just type another number + Enter
+        els.rings.focus();
+        try { els.rings.select(); } catch { /* some browsers reject select() on number input */ }
+      });
+    }
+  });
+  els.generateBtn.addEventListener('click', handleGenerate);
+  els.saveBtn.addEventListener('click', openSaveModal);
+  els.playBtn.addEventListener('click', handlePlay);
+  els.solveBtn.addEventListener('click', handleSolveStart);
+  els.exitSolveBtn.addEventListener('click', handleSolveStop);
+  els.saveCancelBtn.addEventListener('click', closeSaveModal);
+  els.saveConfirmBtn.addEventListener('click', handleSave);
+  els.saveName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') closeSaveModal();
+  });
+  els.saveModal.addEventListener('click', (e) => {
+    if (e.target === els.saveModal) closeSaveModal();
+  });
+  els.fpvMode.addEventListener('change', (e) => {
+    state.fpvMode = e.target.checked;
+    render();
+  });
+
+  // Settings modal
+  const openSettings = () => els.settingsModal.classList.add('show');
+  const closeSettings = () => els.settingsModal.classList.remove('show');
+  els.settingsBtn.addEventListener('click', openSettings);
+  els.settingsCloseBtn.addEventListener('click', closeSettings);
+  els.settingsModal.addEventListener('click', (e) => {
+    if (e.target === els.settingsModal) closeSettings();
+  });
+  els.stepRange.addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) {
+      state.stepFactor = v;
+      els.stepVal.textContent = v.toFixed(2);
+      persist();
+    }
+  });
+
+  document.querySelectorAll('.dpad-btn').forEach(btn => {
+    const dir = btn.dataset.dir;
+    const start = (e) => { e.preventDefault(); startMove(dir); };
+    const stop = (e) => { e.preventDefault(); stopMove(); };
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointerleave', stop);
+    btn.addEventListener('pointercancel', stop);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!state.solving || e.repeat) return;
+    let dir = null;
+    const k = e.key;
+    if (k === 'ArrowUp' || k === 'w' || k === 'W') dir = 'out';
+    else if (k === 'ArrowDown' || k === 's' || k === 'S') dir = 'in';
+    else if (k === 'ArrowLeft' || k === 'a' || k === 'A') dir = 'ccw';
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') dir = 'cw';
+    if (dir) { e.preventDefault(); startMove(dir); }
+  });
+  document.addEventListener('keyup', (e) => {
+    const isMoveKey = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','W','s','S','a','A','d','D'].includes(e.key);
+    if (isMoveKey) stopMove();
+  });
+
+  window.addEventListener('resize', () => {
+    if (state.grid_data) drawPreview(state.grid_data);
+  });
+  // Also redraw whenever the canvas wrap changes size (e.g. d-pad shows/hides)
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (state.grid_data) drawPreview(state.grid_data);
+    });
+    ro.observe(els.canvas.parentElement);
+  }
+
+  // ---- Init ----
+  refreshSavedMazes();
+  render();
+  connectStatusWS();
+})();
+</script>
+</body>
+</html>
