@@ -149,9 +149,7 @@ There is no special server support — solve mode works on any vanilla Dune Weav
 
 ## Tips
 
-- **Difficulty scales fast.** A 3-ring maze is a quick puzzle; a 6-ring maze is a real challenge; an 8-ring maze takes a while. Don't start with 8.
 - **Note the seed.** Every successful generation toasts `Maze generated (seed: 123456)`. There's no UI to type a seed in, but if you want to share or recreate a specific maze you can edit the call to `generateMaze(rings, 12, <seed>)` near the bottom of `maze.html`.
-- **Use Solve before Play.** Solving the maze in sand and *then* drawing it makes a satisfying "before and after" pattern — the ball's solve path leaves a trail through the corridors, and Play then etches the walls on top.
 - **First-person view + bigger step size** = the most "video game" experience the table is capable of.
 - **Saved mazes are per-browser.** The Solve button on a saved row needs the grid data that was generated alongside the `.thr`. If you want to solve a maze from a different machine, regenerate and re-save it there.
 
@@ -202,12 +200,6 @@ Solve mode commands the ball to `theta=<entrance angle>, rho=1.0` before handing
 
 **My saved maze doesn't show up in the Saved list.**
 The Saved list lives in `localStorage` and is per-browser. If you cleared site data, used a private window, or saved from a different device, the entry won't appear here — but the `.thr` file still exists in `custom_patterns/` on the controller.
-
-**Maze generation hangs the page on rings = 8.**
-The 8-ring case can take a couple of seconds to trace because the wall graph gets large and Dijkstra is invoked repeatedly. The button shows "Generating..." while it works. If it never finishes, open the console — there should be no errors, just be patient on slower devices.
-
-**Pattern looks great in preview but the table draws something different.**
-The preview shows the maze's wall layout. The table draws the actual continuous path returned by the wall tracer, which includes the final retrace back to the entrance. They should match visually, but the *order* in which walls are drawn is path-determined and not always the most "obvious" order.
 
 ---
 
