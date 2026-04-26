@@ -1,6 +1,6 @@
 # Dune Weaver Maze Generator
 
-A browser-based circular maze generator for the [Dune Weaver](https://github.com/tuanchris/dune-weaver) sand table. Generate solvable polar mazes, preview them live, save them to your table's pattern library with one click, and even **solve them interactively** by driving the steel ball through the corridors with an on-screen d-pad — including a first-person view that turns your sand table into a tabletop maze game.
+A browser-based circular maze generator for the [Dune Weaver](https://github.com/tuanchris/dune-weaver) sand table. Generate solvable polar mazes, preview them live, save them to your table's pattern library with one click, and even **solve them interactively** by driving the steel ball through the corridors with an on-screen d-pad.
 
 The whole app is one self-contained HTML file. No build step, no dependencies, no package manager. Drop it in and go.
 
@@ -51,23 +51,8 @@ The page also keeps a list of recently saved mazes in your browser's `localStora
 2. Type a number into **Rings (3–8)** — start with `6` if you're not sure.
 3. Click **Generate Maze**. A circular maze appears in the preview, with a green dot marking the entrance on the rim and a red dot at the center.
 4. Click **Save**, give it a name, and the `.thr` is uploaded to your table.
-5. Either click **Play** to draw the maze in sand, or click **Solve** to enter interactive solve mode and steer the ball through the corridors yourself.
-
----
-
-## How it works
-
-The generator is a port of a circular ("theta-rho") maze algorithm to plain JavaScript. The pipeline is:
-
-1. **Build a circular grid.** Concentric rings are subdivided into sectors. Inner rings have fewer sectors than outer ones — every time a cell's arc length grows past about twice its radial height, the sector count for the next ring out doubles. This keeps every cell roughly square no matter where it sits on the table.
-2. **Carve a perfect maze.** A seeded recursive backtracker walks the grid from a random outer-rim cell, knocking down walls between unvisited neighbors until every cell is reachable from every other cell exactly one way. The seed is logged in the toast so you can recognize a maze you like.
-3. **Pick an entrance and exit.** The starting cell on the rim becomes the entrance (green dot). The center cell is opened to one of its neighbors so the maze has a true exit (red dot).
-4. **Extract walls.** Each remaining wall becomes either an `arc` (a piece of a ring boundary) or a `radial` (a spoke between two rings).
-5. **Trace the walls into one continuous path.** A DFS walks the wall graph; when it gets stuck, it uses Dijkstra over the wall network itself to slide the ball to the nearest unwalked wall along *another wall*. This means the table's drawing head almost never has to jump across an open corridor — most of the path is real wall, drawn in the sand.
-6. **Return to the entrance.** After every wall is drawn, a final Dijkstra path retraces along walls back out to the rim, then arcs along the perimeter to the entrance — so the maze ends with the ball parked at the start, ready to be solved.
-7. **Unwrap theta.** Theta is accumulated across full revolutions (no `2π` wrapping), which is what the Dune Weaver firmware expects for `.thr` files.
-
-The result is a single continuous polar path that draws every wall of the maze, with as little open-space travel as the wall graph allows.
+5. Click **Play** to draw the maze in sand
+6. Click **Solve** to enter interactive solve mode and steer the ball through the maze using the on screen d-pad.
 
 ---
 
@@ -125,7 +110,7 @@ Tick **First-person view** below the d-pad to switch to FPV controls:
 | ← | Turn left relative to facing |
 | → | Turn right relative to facing |
 
-The label below the d-pad shows your current facing (`in`, `out`, `cw`, or `ccw`), so you always know which way "forward" is. This makes the maze feel like a top-down dungeon crawler — much harder, much more fun.
+The label below the d-pad shows your current facing (`in`, `out`, `cw`, or `ccw`), so you always know which way "forward" is.
 
 ### Step size
 
